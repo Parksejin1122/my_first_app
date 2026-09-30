@@ -1,6 +1,6 @@
 import 'dart:async';
-
 import 'package:flutter/material.dart';
+import 'past_exam_2026.dart';
 
 void main() {
   runApp(const MyApp());
@@ -738,19 +738,73 @@ class _HomePageState extends State<HomePage> {
   // PAST EXAM
   // =========================
 
-  Widget _buildPastExamPage() {
-    return const Center(
-      child: Text(
-        '📝 기출\n\n기출문제와 오답을 관리할 수 있어요.',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
 
+Widget _buildPastExamPage() {
+  return DefaultTabController(
+    length: 2,
+    child: Column(
+      children: [
+        const SizedBox(height: 20),
+
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 20),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '기출문제',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 18),
+
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Container(
+            height: 50,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEDEFF3),
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: TabBar(
+              dividerColor: Colors.transparent,
+              indicator: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              labelColor: const Color(0xFF202124),
+              unselectedLabelColor: Colors.grey,
+              labelStyle: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
+              tabs: const [
+                Tab(text: '연도별'),
+                Tab(text: '과목별'),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        const Expanded(
+          child: TabBarView(
+            children: [
+              _PastExamByYear(),
+              _PastExamBySubject(),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
   // =========================
   // BOTTOM NAVIGATION
   // =========================
@@ -787,6 +841,170 @@ class _HomePageState extends State<HomePage> {
           label: '기출',
         ),
       ],
+    );
+  }
+}
+class _PastExamByYear extends StatelessWidget {
+  const _PastExamByYear();
+
+  @override
+  Widget build(BuildContext context) {
+    final years = [
+      '2026년',
+      '2025년',
+      '2024년',
+      '2023년',
+      '2022년', 
+      '2021년',
+      '2020년',
+      '2019년',
+      '2018년',
+      '2017년',
+      '2016년',
+      '2015년',
+    ];
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
+      itemCount: years.length,
+      itemBuilder: (context, index) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.grey.shade200,
+            ),
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 8,
+            ),
+            leading: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F0FE),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: const Center(
+                child: Text(
+                  '📅',
+                  style: TextStyle(fontSize: 22),
+                ),
+              ),
+            ),
+            title: Text(
+              years[index],
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            subtitle: const Text(
+              '기출문제 풀기',
+              style: TextStyle(fontSize: 12),
+            ),
+            trailing: const Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+            ),
+           onTap: () {
+            if (years[index] == '2026년') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) =>  PastExam2026Page(),
+      ),
+    );
+  }
+},
+
+          ),
+        );
+      },
+    );
+  }
+}
+
+
+class _PastExamBySubject extends StatelessWidget {
+  const _PastExamBySubject();
+
+  @override
+  Widget build(BuildContext context) {
+    final subjects = [
+      ('교육학', '🎓'),
+      ('심리학개론', '🧠'), 
+      ('성격심리', '👤'), 
+      ('학습심리', '📖'), 
+      ('상담이론과 실제', '💬'), 
+      ('가족상담', '👨‍👩‍👧‍👦'), 
+      ('특수아상담', '🧩'), 
+      ('이상심리학', '🩺'), 
+      ('심리검사', '📊'), 
+      ('진로상담', '🧭'), 
+      ('집단상담', '👥'), 
+      ('아동심리학', '👶'), 
+      ('청소년 심리학', '🧑‍🎓'),
+      ('상담실습', '📝'),
+    ];
+
+    return ListView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
+      itemCount: subjects.length,
+      itemBuilder: (context, index) {
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.grey.shade200,
+            ),
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 20,
+              vertical: 8,
+            ),
+            leading: Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1EAFF),
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Center(
+                child: Text(
+                  subjects[index].$2,
+                  style: const TextStyle(fontSize: 22),
+                ),
+              ),
+            ),
+            title: Text(
+              subjects[index].$1,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            subtitle: const Text(
+              '과목별 기출문제',
+              style: TextStyle(fontSize: 12),
+            ),
+            trailing: const Icon(
+              Icons.arrow_forward_ios,
+              size: 16,
+            ),
+            onTap: () {
+              // 나중에 해당 과목 기출문제로 이동
+            },
+          ),
+        );
+      },
     );
   }
 }
