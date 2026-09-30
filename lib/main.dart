@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'past_exam_2026.dart';
+import 'past_exam_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -854,28 +854,28 @@ class _PastExamByYear extends StatelessWidget {
       '2025년',
       '2024년',
       '2023년',
-      '2022년', 
+      '2022년',
       '2021년',
       '2020년',
       '2019년',
       '2018년',
       '2017년',
       '2016년',
-      '2015년',
     ];
 
     return ListView.builder(
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
       itemCount: years.length,
       itemBuilder: (context, index) {
+        final yearText = years[index];
+        final year = int.parse(yearText.replaceAll('년', ''));
+
         return Container(
           margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.grey.shade200,
-            ),
+            border: Border.all(color: Colors.grey.shade200),
           ),
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(
@@ -890,14 +890,11 @@ class _PastExamByYear extends StatelessWidget {
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Center(
-                child: Text(
-                  '📅',
-                  style: TextStyle(fontSize: 22),
-                ),
+                child: Text('📅', style: TextStyle(fontSize: 22)),
               ),
             ),
             title: Text(
-              years[index],
+              yearText,
               style: const TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w800,
@@ -912,23 +909,61 @@ class _PastExamByYear extends StatelessWidget {
               size: 16,
             ),
            onTap: () {
-            if (years[index] == '2026년') {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) =>  PastExam2026Page(),
-      ),
-    );
-  }
-},
+  final yearText = years[index];
+  final year = int.parse(yearText.replaceAll('년', ''));
 
+  showModalBottomSheet<void>(
+    context: context,
+    builder: (sheetContext) {
+      return SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text('$yearText 기출문제 선택'),
+            ),
+            for (final subject in ['A', 'B'])
+              ListTile(
+                title: Text('전공 $subject'),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => PastExamPdfPage(
+                        year: year,
+                        subject: subject,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ListTile(
+              title: const Text('교육학'),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => EducationExamPdfPage(year: year),
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      );
+    },
+  );
+},
           ),
         );
       },
     );
   }
 }
-
 
 class _PastExamBySubject extends StatelessWidget {
   const _PastExamBySubject();
