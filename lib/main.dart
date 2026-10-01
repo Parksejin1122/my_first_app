@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'past_exam_page.dart';
+import 'study_home_page.dart';
+import 'study_subject_page.dart';
 
 void main() {
   runApp(const MyApp());
@@ -104,53 +106,17 @@ class _HomePageState extends State<HomePage> {
   // =========================
 
   Widget _buildHome() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 30),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildTopBar(),
-
-          const SizedBox(height: 24),
-
-          _buildDDayCard(),
-
-          const SizedBox(height: 18),
-
-          _buildTodayGoal(),
-
-          const SizedBox(height: 28),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                '오늘의 학습',
-                style: TextStyle(
-                  fontSize: 23,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              Text(
-                '3 / 5',
-                style: TextStyle(
-                  color: Colors.grey.shade600,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 20),
-
-          _buildLearningPath(),
-
-          const SizedBox(height: 28),
-
-          _buildQuickReview(),
-        ],
+  return Column(
+    children: [
+      Padding(
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+        child: _buildDDayCard(),
       ),
-    );
+      const Expanded(
+        child: StudyHomePage(),
+      ),
+    ],
+  );
   }
 
   Widget _buildTopBar() {
@@ -705,16 +671,7 @@ class _HomePageState extends State<HomePage> {
   // =========================
 
   Widget _buildStudyPage() {
-    return const Center(
-      child: Text(
-        '📚 학습\n\n여기에 과목과 학습 카드를 만들 거예요.',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
+      return const StudySubjectPage();
   }
 
   // =========================

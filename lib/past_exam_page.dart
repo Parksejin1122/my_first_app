@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:syncfusion_flutter_pdfviewer/pdfviewer.dart';
+import 'study_home_page.dart';
 
 class PastExamPdfPage extends StatelessWidget {
   const PastExamPdfPage({

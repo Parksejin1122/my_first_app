@@ -1,0 +1,42 @@
+[
+  {
+    "id": "education_positive_reinforcement",
+    "subject": "교육학",
+    "unit": "학습이론",
+    "title": "정적 강화",
+    "explanation": "행동 뒤에 자극을 제공하여 그 행동의 발생 가능성을 높이는 것이다.",
+    "questions": [
+      {
+        "id": "positive_reinforcement_blank",
+        "type": "blank_choice",
+        "parts": ["정적 강화는 행동 뒤에 ", "을 제공한다."],
+        "answers": ["자극"],
+        "options": [["자극", "벌", "반응"]]
+      },
+      {
+        "id": "positive_reinforcement_distinguish",
+        "type": "distinguish",
+        "prompt": "정적 강화와 부적 강화의 차이는?",
+        "keyPoints": [
+          "정적 강화는 자극을 제공한다",
+          "부적 강화는 불쾌한 자극을 제거한다"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "education_classical_conditioning",
+    "subject": "교육학",
+    "unit": "학습이론",
+    "title": "고전적 조건형성",
+    "explanation": "중립 자극이 무조건 자극과 반복적으로 연결되면서 조건 반응을 일으키게 되는 학습 과정이다.",
+    "questions": [
+      {
+        "id": "classical_conditioning_name",
+        "type": "name_recall",
+        "prompt": "중립 자극이 무조건 자극과 연결되어 조건 반응을 일으키는 학습 과정은?",
+        "answer": "고전적 조건형성"
+      }
+    ]
+  }
+]
