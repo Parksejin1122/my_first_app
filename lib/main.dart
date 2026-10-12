@@ -198,84 +198,59 @@ class _HomePageState extends State<HomePage> {
   // =========================
 
   Widget _buildDDayCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            Color(0xFF4F7CFF),
-            Color(0xFF6D5DFB),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+    decoration: BoxDecoration(
+      color: const Color(0xFF263452),
+      borderRadius: BorderRadius.circular(20),
+    ),
+    child: Row(
+      children: [
+        Container(
+          width: 42,
+          height: 42,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.12),
+            borderRadius: BorderRadius.circular(13),
+          ),
+          child: const Text('🎯', style: TextStyle(fontSize: 22)),
         ),
-        borderRadius: BorderRadius.circular(26),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF4F7CFF).withOpacity(0.20),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          const Text(
-            '시험까지 남은 시간',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-
-          const SizedBox(height: 8),
-
-          Text(
-            'D-$days',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 40,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-
-          const SizedBox(height: 18),
-
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+        const SizedBox(width: 12),
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildTimeBox(
-                twoDigits(hours),
-                '시간',
+              Text(
+                '전문상담 임용시험',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-              _buildTimeSeparator(),
-              _buildTimeBox(
-                twoDigits(minutes),
-                '분',
-              ),
-              _buildTimeSeparator(),
-              _buildTimeBox(
-                twoDigits(seconds),
-                '초',
+              SizedBox(height: 2),
+              Text(
+                '2027.11.28 · 차근차근 준비해요',
+                style: TextStyle(color: Colors.white70, fontSize: 11),
               ),
             ],
           ),
-
-          const SizedBox(height: 15),
-
-          const Text(
-            '2027년 11월 28일 시험',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 13,
-            ),
+        ),
+        Text(
+          'D-$days',
+          style: const TextStyle(
+            color: Color(0xFFFFD977),
+            fontSize: 27,
+            fontWeight: FontWeight.w900,
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
+
 
   Widget _buildTimeBox(String value, String label) {
     return Container(
@@ -284,7 +259,7 @@ class _HomePageState extends State<HomePage> {
         vertical: 9,
       ),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.15),
+        color: Colors.white.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(14),
       ),
       child: Column(
@@ -513,10 +488,10 @@ class _HomePageState extends State<HomePage> {
                   width: 54,
                   height: 54,
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.13),
+                    color: color.withValues(alpha: 0.13),
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: color.withOpacity(0.3),
+                      color: color.withValues(alpha: 0.3),
                       width: 2,
                     ),
                   ),
@@ -575,7 +550,7 @@ class _HomePageState extends State<HomePage> {
                     width: 30,
                     height: 30,
                     decoration: BoxDecoration(
-                      color: color.withOpacity(0.1),
+                      color: color.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Text(

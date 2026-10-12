@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'game_dashboard.dart';
+import 'study_reward_page.dart';
 
 const _progressKey = 'concept_review_dates_v1';
 const _questionCursorKey = 'concept_question_cursor_v1';
@@ -315,6 +317,16 @@ class _StudyHomePageState extends State<StudyHomePage> {
         final data = snapshot.data!;
         final count = data.items.length;
 
+        if (widget.subject == null) {
+          return GameDashboard(
+          count: count,
+          dueCount: data.dueCount,
+         onStart: () {
+       _start(data.items);
+          },
+        );
+       }
+
         // 기존 D-day는 main.dart에서 이 위에 표시하므로 여기에는 넣지 않음.
         // ListView라 작은 화면에서도 bottom overflow가 나지 않음.
         return ListView(
@@ -395,9 +407,14 @@ class _StudySessionPage extends StatefulWidget {
 }
 
 class _StudySessionPageState extends State<_StudySessionPage> {
+  final String _sessionId = DateTime.now().microsecondsSinceEpoch.toString();
+  int _rewardPreviousXp = 0;
+  int _rewardEarnedXp = 0;
   int _index = 0;
   bool _reading = true;
   bool _saving = false;
+  int _rewardBaseXp = 0;
+  int _rewardBonusXp = 0;
 
   @override
   void initState() {
@@ -405,78 +422,82 @@ class _StudySessionPageState extends State<_StudySessionPage> {
     _reading = widget.items.first.isNew;
   }
 
-  Future<void> _finishQuestion(int days) async {
-    if (_saving) return;
-    setState(() => _saving = true);
+Future<bool> _finishQuestion(int days) async {
+  if (_saving) return false;
+  setState(() => _saving = true);
 
-    try {
-      final item = widget.items[_index];
-      final prefs = await SharedPreferences.getInstance();
-      final dates = await _loadDates();
-      final now = DateTime.now();
+  try {
+    final item = widget.items[_index];
+    final prefs = await SharedPreferences.getInstance();
+    final dates = await _loadDates();
+    final now = DateTime.now();
 
-      dates[item.concept.id] =
-          DateTime(now.year, now.month, now.day + days).toIso8601String();
+    dates[item.concept.id] =
+        DateTime(now.year, now.month, now.day + days).toIso8601String();
 
-      final saved = await prefs.setString(_progressKey, jsonEncode(dates));
-      if (!saved) throw StateError('학습 기록 저장 실패');
+    final saved = await prefs.setString(_progressKey, jsonEncode(dates));
+    if (!saved) throw StateError('학습 기록 저장 실패');
 
-      // 같은 개념을 다음 세션에서 만났을 때 다른 문제를 출제.
-      final key = '$_questionCursorKey${item.concept.id}';
-      final cursor = prefs.getInt(key) ?? 0;
-      await prefs.setInt(key, cursor + 1);
+    final key = '$_questionCursorKey${item.concept.id}';
+    final cursor = prefs.getInt(key) ?? 0;
+    await prefs.setInt(key, cursor + 1);
 
-      if (_index == widget.items.length - 1) {
-        final scope = widget.subject ?? 'all';
-        final cursorKey = '$_sessionCursorPrefix$scope';
-        final oldCursor = prefs.getInt(cursorKey) ?? 0;
-        await prefs.setInt(cursorKey, oldCursor + widget.items.length);
-      }
+    if (_index == widget.items.length - 1) {
+  final before = await StudyGameProgress.load();
 
-      if (!mounted) return;
-      setState(() {
-        _index++;
-        _reading = _index < widget.items.length &&
-            widget.items[_index].isNew;
-        _saving = false;
-      });
-    } catch (error) {
-      if (!mounted) return;
-      setState(() => _saving = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('저장하지 못했어요: $error')),
-      );
-    }
+  await StudyGameProgress.recordSession(
+    sessionId: _sessionId,
+    conceptCount: widget.items.length,
+  );
+
+  final after = await StudyGameProgress.load();
+
+  if (after.lastSessionId == _sessionId &&
+      after.totalXp > before.totalXp) {
+    _rewardPreviousXp = before.totalXp;
+    _rewardEarnedXp = after.totalXp - before.totalXp;
+    _rewardBaseXp = after.lastBaseXp;
+    _rewardBonusXp = after.lastBonusXp;
   }
+
+  final scope = widget.subject ?? 'all';
+  final cursorKey = '$_sessionCursorPrefix$scope';
+  final oldCursor = prefs.getInt(cursorKey) ?? 0;
+  await prefs.setInt(cursorKey, oldCursor + widget.items.length);
+}
+
+
+    if (!mounted) return false;
+    setState(() {
+      _index++;
+      _reading = _index < widget.items.length &&
+          widget.items[_index].isNew;
+      _saving = false;
+    });
+    return true;
+  } catch (error) {
+    if (!mounted) return false;
+    setState(() => _saving = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('저장하지 못했어요: $error')),
+    );
+    return false;
+  }
+}
+
 
   @override
   Widget build(BuildContext context) {
-    if (_index >= widget.items.length) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('학습 완료')),
-        body: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.emoji_events, color: _green, size: 80),
-              const SizedBox(height: 16),
-              Text(
-                '${widget.items.length}개 개념 학습 완료!',
-                style: const TextStyle(
-                  fontSize: 23,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 20),
-              FilledButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('홈으로 돌아가기'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+  if (_index >= widget.items.length) {
+  return StudyRewardPage(
+  previousXp: _rewardPreviousXp,
+  earnedXp: _rewardEarnedXp,
+  baseXp: _rewardBaseXp,
+  bonusXp: _rewardBonusXp,
+  conceptCount: widget.items.length,
+  onContinue: () => Navigator.pop(context),
+);
+ }
 
     final item = widget.items[_index];
 
@@ -530,7 +551,6 @@ class _StudySessionPageState extends State<_StudySessionPage> {
     );
   }
 }
-
 class _QuestionView extends StatefulWidget {
   const _QuestionView({
     super.key,
@@ -541,7 +561,7 @@ class _QuestionView extends StatefulWidget {
 
   final _Question question;
   final bool saving;
-  final Future<void> Function(int days) onRated;
+  final Future<bool> Function(int days) onRated;
 
   @override
   State<_QuestionView> createState() => _QuestionViewState();
@@ -550,12 +570,14 @@ class _QuestionView extends StatefulWidget {
 class _QuestionViewState extends State<_QuestionView> {
   late final List<TextEditingController> _inputs;
   late final List<String?> _choices;
+
   bool _checked = false;
   int _activeBlank = 0;
 
   @override
   void initState() {
     super.initState();
+
     final q = widget.question;
     final inputCount = switch (q.type) {
       'blank_input' || 'components' => q.answers.length,
@@ -578,29 +600,311 @@ class _QuestionViewState extends State<_QuestionView> {
     super.dispose();
   }
 
-  bool get _allFilled {
-    if (widget.question.type == 'blank_choice') {
-      return _choices.every((choice) => choice != null);
+  String _formatAnswers(List<String> answers) {
+    if (answers.length == 1) return answers.first;
+
+    return [
+      for (var i = 0; i < answers.length; i++)
+        '${i + 1}. ${answers[i]}',
+    ].join('\n');
+  }
+
+  Future<void> _submitWrittenAnswer() async {
+    if (_checked) return;
+
+    if (_inputs.any((input) => input.text.trim().isEmpty)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('답을 먼저 모두 채워주세요.')),
+      );
+      return;
     }
-    return _inputs.every((input) => input.text.trim().isNotEmpty);
+
+    FocusScope.of(context).unfocus();
+    setState(() => _checked = true);
+    await _showFeedback();
+  }
+
+  Future<void> _pickChoice(String option) async {
+    if (_checked || _choices[_activeBlank] != null) return;
+
+    final blankIndex = _activeBlank;
+    final isLast = blankIndex == widget.question.answers.length - 1;
+
+    setState(() {
+      _choices[blankIndex] = option;
+      if (isLast) _checked = true;
+    });
+
+    await _showFeedback(
+      blankIndex: blankIndex,
+      selectedOption: option,
+    );
+
+    if (!mounted || isLast) return;
+
+    setState(() => _activeBlank = blankIndex + 1);
+  }
+
+  Future<void> _showFeedback({
+    int? blankIndex,
+    String? selectedOption,
+  }) async {
+    final q = widget.question;
+
+    // 선택형 빈칸의 마지막 답이 아니라면,
+    // 해당 빈칸 결과만 보여주고 다음 빈칸으로 진행한다.
+    final isIntermediate =
+        blankIndex != null && blankIndex < q.answers.length - 1;
+
+    // 다음 카드로 넘어가면 현재 입력 위젯이 제거되므로,
+    // 팝업에 쓸 내용은 미리 문자열로 보관한다.
+    final myAnswers = q.type == 'blank_choice'
+        ? _choices.map((choice) => choice ?? '미선택').toList()
+        : _inputs.map((input) => input.text.trim()).toList();
+
+    final correctAnswers = q.keyPoints.isNotEmpty
+        ? q.keyPoints
+        : q.answers;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        var ratingInProgress = false;
+
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            final selectedIsCorrect = blankIndex != null &&
+                selectedOption == q.answers[blankIndex];
+
+            return PopScope(
+              canPop: false,
+              child: Dialog(
+                insetPadding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 24,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: 520,
+                    maxHeight:
+                        MediaQuery.sizeOf(dialogContext).height * 0.82,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(22),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Icon(
+                          isIntermediate
+                              ? selectedIsCorrect
+                                  ? Icons.check_circle_rounded
+                                  : Icons.info_rounded
+                              : Icons.fact_check_rounded,
+                          size: 52,
+                          color: isIntermediate && !selectedIsCorrect
+                              ? Colors.orange
+                              : const Color(0xFF58CC78),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          isIntermediate
+                              ? selectedIsCorrect
+                                  ? '정답이에요!'
+                                  : '답을 확인해 보세요'
+                              : '내 답과 비교해 보세요',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 23,
+                            fontWeight: FontWeight.w900,
+                          ),
+                        ),
+                        const SizedBox(height: 20),
+
+                        // 답안이나 해설이 길어도 팝업 안에서 스크롤됨
+                        Flexible(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                if (isIntermediate) ...[
+                                  Text(
+                                    '빈칸 ${blankIndex + 1} · 내 선택',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(selectedOption ?? ''),
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    '정답',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(q.answers[blankIndex]),
+                                ] else ...[
+                                  const Text(
+                                    '내 답',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _formatAnswers(myAnswers),
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                  const Divider(height: 32),
+                                  const Text(
+                                    '핵심 답 · 확인 요소',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    _formatAnswers(correctAnswers),
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                  if (q.explanation.isNotEmpty) ...[
+                                    const SizedBox(height: 20),
+                                    const Text(
+                                      '해설',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Text(
+                                      q.explanation,
+                                      style: const TextStyle(height: 1.5),
+                                    ),
+                                  ],
+                                ],
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 18),
+
+                        if (isIntermediate)
+                          FilledButton(
+                            onPressed: () =>
+                                Navigator.of(dialogContext).pop(),
+                            child: const Text('다음 빈칸'),
+                          )
+                        else ...[
+                          const Text(
+                            '내 답과 비교하면 어땠나요?',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          OutlinedButton(
+                            onPressed: ratingInProgress
+                                ? null
+                                : () async {
+                                    setDialogState(
+                                      () => ratingInProgress = true,
+                                    );
+                                    final saved = await widget.onRated(1);
+                                    if (!dialogContext.mounted) return;
+                                    if (saved) {
+                                      Navigator.of(dialogContext).pop();
+                                    } else {
+                                      setDialogState(
+                                        () => ratingInProgress = false,
+                                      );
+                                    }
+                                  },
+                            child: const Text('기억 안 남 · 내일 복습'),
+                          ),
+                          OutlinedButton(
+                            onPressed: ratingInProgress
+                                ? null
+                                : () async {
+                                    setDialogState(
+                                      () => ratingInProgress = true,
+                                    );
+                                    final saved = await widget.onRated(3);
+                                    if (!dialogContext.mounted) return;
+                                    if (saved) {
+                                      Navigator.of(dialogContext).pop();
+                                    } else {
+                                      setDialogState(
+                                        () => ratingInProgress = false,
+                                      );
+                                    }
+                                  },
+                            child: const Text('애매함 · 3일 뒤 복습'),
+                          ),
+                          FilledButton(
+                            onPressed: ratingInProgress
+                                ? null
+                                : () async {
+                                    setDialogState(
+                                      () => ratingInProgress = true,
+                                    );
+                                    final saved = await widget.onRated(7);
+                                    if (!dialogContext.mounted) return;
+                                    if (saved) {
+                                      Navigator.of(dialogContext).pop();
+                                    } else {
+                                      setDialogState(
+                                        () => ratingInProgress = false,
+                                      );
+                                    }
+                                  },
+                            child: const Text('설명 가능 · 7일 뒤 복습'),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final q = widget.question;
 
+    final typeName = switch (q.type) {
+      'blank_choice' => '빈칸에서 선택하기',
+      'blank_input' => '빈칸 직접 채우기',
+      'name_recall' => '개념 이름 떠올리기',
+      'definition_recall' => '개념 정의하기',
+      'components' => '구성요소 쓰기',
+      _ => '개념 구별하기',
+    };
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          switch (q.type) {
-            'blank_choice' => '빈칸에서 선택하기',
-            'blank_input' => '빈칸 직접 채우기',
-            'name_recall' => '개념 이름 떠올리기',
-            'definition_recall' => '개념 정의하기',
-            'components' => '구성요소 쓰기',
-            _ => '개념 구별하기',
-          },
+          typeName,
           style: const TextStyle(
             fontSize: 19,
             fontWeight: FontWeight.bold,
@@ -635,70 +939,11 @@ class _QuestionViewState extends State<_QuestionView> {
           ],
         ],
 
-        const SizedBox(height: 20),
-        if (!_checked && q.type != 'blank_choice')
-        FilledButton(
-            onPressed: () {
-              if (!_allFilled) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('답을 먼저 모두 채워주세요.'),
-                  ),
-                );
-                return;
-              }
-              setState(() => _checked = true);
-            },
-            child: const Text('답 확인'),
-          ),
-
-        if (_checked) ...[
-          const Divider(height: 36),
-          const Text(
-            '핵심 답 · 확인 요소',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 12),
-          if (q.keyPoints.isNotEmpty)
-            for (final point in q.keyPoints)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text('• $point'),
-              )
-          else
-            for (var i = 0; i < q.answers.length; i++)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  q.answers.length == 1
-                      ? q.answers[i]
-                      : '${i + 1}. ${q.answers[i]}',
-                ),
-              ),
-          if (q.explanation.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text('해설: ${q.explanation}'),
-          ],
+        if (q.type != 'blank_choice' && !_checked) ...[
           const SizedBox(height: 20),
-          const Text('내 답과 비교하면 어땠나요?'),
-          const SizedBox(height: 8),
-          OutlinedButton(
-            onPressed: widget.saving
-                ? null
-                : () => widget.onRated(1),
-            child: const Text('기억 안 남 · 내일 복습'),
-          ),
-          OutlinedButton(
-            onPressed: widget.saving
-                ? null
-                : () => widget.onRated(3),
-            child: const Text('애매함 · 3일 뒤 복습'),
-          ),
           FilledButton(
-            onPressed: widget.saving
-                ? null
-                : () => widget.onRated(7),
-            child: const Text('설명 가능 · 7일 뒤 복습'),
+            onPressed: _submitWrittenAnswer,
+            child: const Text('답 확인'),
           ),
         ],
       ],
@@ -706,167 +951,105 @@ class _QuestionViewState extends State<_QuestionView> {
   }
 
   Widget _buildInlineBlanks(_Question q) {
-  final pieces = <Widget>[];
+    final pieces = <Widget>[];
 
-  for (var i = 0; i < q.parts.length; i++) {
-    if (q.parts[i].isNotEmpty) {
-      pieces.add(
-        Text(
-          q.parts[i],
-          style: const TextStyle(fontSize: 19, height: 1.7),
-        ),
-      );
-    }
-
-    if (i >= q.answers.length) continue;
-
-    // 문장 안에 표시되는 하얀 빈칸
-    if (q.type == 'blank_choice') {
-      pieces.add(
-        Container(
-          constraints: const BoxConstraints(minWidth: 90),
-          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          padding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 9,
+    for (var i = 0; i < q.parts.length; i++) {
+      if (q.parts[i].isNotEmpty) {
+        pieces.add(
+          Text(
+            q.parts[i],
+            style: const TextStyle(fontSize: 19, height: 1.7),
           ),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            border: Border.all(
-              color: i == _activeBlank && !_checked
-                  ? const Color(0xFF58CC78)
-                  : Colors.grey.shade400,
-              width: i == _activeBlank && !_checked ? 2 : 1,
+        );
+      }
+
+      if (i >= q.answers.length) continue;
+
+      if (q.type == 'blank_choice') {
+        pieces.add(
+          Container(
+            constraints: const BoxConstraints(minWidth: 90),
+            margin: const EdgeInsets.symmetric(
+              horizontal: 4,
+              vertical: 4,
             ),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text(
-            _choices[i] ?? '빈칸 ${i + 1}',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: _choices[i] == null ? Colors.grey : Colors.black87,
+            padding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 9,
+            ),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border.all(
+                color: i == _activeBlank && !_checked
+                    ? const Color(0xFF58CC78)
+                    : Colors.grey.shade400,
+                width: i == _activeBlank && !_checked ? 2 : 1,
+              ),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text(
+              _choices[i] ?? '빈칸 ${i + 1}',
+              textAlign: TextAlign.center,
             ),
           ),
-        ),
-      );
-    } else {
-      // 기존 입력형 빈칸은 유지
-      pieces.add(
-        Container(
-          width: 115,
-          margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
-          child: TextField(
-            controller: _inputs[i],
-            enabled: !_checked,
-            textAlign: TextAlign.center,
-            decoration: InputDecoration(
-              hintText: '빈칸 ${i + 1}',
-              filled: true,
-              fillColor: Colors.white,
-              isDense: true,
-              border: const OutlineInputBorder(),
-            ),
-          ),
-        ),
-      );
-    }
-  }
-
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Wrap(
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: pieces,
-      ),
-
-      // 선택형에만 문제 아래 보기 표시
-      if (q.type == 'blank_choice' && !_checked) ...[
-        const SizedBox(height: 28),
-        Text(
-          '빈칸 ${_activeBlank + 1}에 들어갈 말은?',
-          style: const TextStyle(
-            fontSize: 17,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
-        const SizedBox(height: 12),
-        for (final option in q.options[_activeBlank])
-          Padding(
-            padding: const EdgeInsets.only(bottom: 10),
-            child: SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  alignment: Alignment.centerLeft,
-                  backgroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 16,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                ),
-                onPressed: () async {
-                  final blankIndex = _activeBlank;
-                  final correctAnswer = q.answers[blankIndex];
-                  final isCorrect = option == correctAnswer;
-
-                  setState(() {
-                    _choices[blankIndex] = option;
-                  });
-
-                  await showDialog<void>(
-                    context: context,
-                    barrierDismissible: false,
-                    builder: (dialogContext) => AlertDialog(
-                      title: Text(isCorrect ? '정답이에요! 🎉' : '아쉬워요!'),
-                      content: Text(
-                        isCorrect
-                            ? '빈칸 ${blankIndex + 1}의 정답은 "$correctAnswer"예요.'
-                            : '선택한 답: $option\n정답: $correctAnswer',
-                      ),
-                      actions: [
-                        FilledButton(
-                          onPressed: () => Navigator.pop(dialogContext),
-                          child: Text(
-                            blankIndex == q.answers.length - 1
-                                ? '결과 보기'
-                                : '다음 빈칸',
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-
-                  if (!mounted) return;
-
-                  setState(() {
-                    if (blankIndex == q.answers.length - 1) {
-                      _checked = true;
-                    } else {
-                      _activeBlank = blankIndex + 1;
-                    }
-                  });
-                },
-                child: Text(
-                  option,
-                  style: const TextStyle(fontSize: 16),
-                ),
+        );
+      } else {
+        pieces.add(
+          SizedBox(
+            width: 115,
+            child: TextField(
+              controller: _inputs[i],
+              enabled: !_checked,
+              textAlign: TextAlign.center,
+              decoration: const InputDecoration(
+                filled: true,
+                fillColor: Colors.white,
+                border: OutlineInputBorder(),
               ),
             ),
           ),
-      ],
+        );
+      }
+    }
 
-      if (q.type == 'blank_choice' && _checked)
-        const Text(
-          '모든 빈칸을 풀었어요. 아래에서 핵심 답과 해설을 확인해 주세요.',
-          style: TextStyle(color: Colors.black54),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: pieces,
         ),
-    ],
-  );
-}
+        if (q.type == 'blank_choice' && !_checked) ...[
+          const SizedBox(height: 28),
+          Text(
+            '빈칸 ${_activeBlank + 1}에 들어갈 말은?',
+            style: const TextStyle(
+              fontSize: 17,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+          for (final option in q.options[_activeBlank])
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    alignment: Alignment.centerLeft,
+                    backgroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 16,
+                    ),
+                  ),
+                  onPressed: () => _pickChoice(option),
+                  child: Text(option),
+                ),
+              ),
+            ),
+        ],
+      ],
+    );
+  }
 }
